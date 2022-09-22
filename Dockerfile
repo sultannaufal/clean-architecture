@@ -1,17 +1,23 @@
 # syntax=docker/dockerfile:1
 
-FROM golang:1.16-alpine
+FROM golang:1.19-alpine as base
+WORKDIR /builder
 
-WORKDIR /app
+ENV GO111MODULE=on CGO_ENABLED=0
 
-COPY go.mod ./
-COPY go.sum ./
+COPY go.mod go.sum ./
 RUN go mod download
 
-COPY *.go ./
+# COPY *.go ./
+COPY . .
 
-RUN go build -o /docker-gs-ping
+RUN go build -o /builder/main /builder/main.go
 
-EXPOSE 8080
+# runner image
+FROM gcr.io/distroless/static:latest
+WORKDIR /app
+COPY --from=base /builder/main main
+COPY --from=base /builder/.env .env
 
-CMD [ "/docker-gs-ping" ]
+EXPOSE 8000
+CMD ["/app/main"]
